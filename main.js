@@ -3,7 +3,8 @@
 function Game(board) {
 	
 	this.board = board;
-    
+    this.currentShape;
+    /*
     const verticalLine = [
         {x: 2, y: 2}, 
         {x: 2, y: 3}, 
@@ -12,7 +13,7 @@ function Game(board) {
         {x: 2, y: 6},
         {x: 3, y: 4}
     ];    
-    
+    */
     const ZShape = [
         {x: 4, y: 2}, 
         {x: 3, y: 3}, 
@@ -49,34 +50,48 @@ function Game(board) {
     ];
     
 	this.shapes = [
-		new Shape(IShape, 'gray', board)
+		new Shape(ZShape, 'gray', board),
+        new Shape(LShape, 'gray', board),
+        new Shape(TShape, 'gray', board),
+        new Shape(OShape, 'gray', board),
+        new Shape(IShape, 'gray', board)
 	];	
     
 	this.init = () => {
 		this.board.renderGameBoard();
-		this.board.drawShape(this.shapes[0], 'add'); 
-        this.board.drawCenter(this.shapes[0].center);
+		this.nextShape();
+        //this.board.drawCenter(this.shapes[0].center);
 	}
     
     this.moveShape = (shape, direction) => {
-        this.board.drawShape(shape, 'remove');
-        shape.move(direction);
-        this.board.drawShape(shape, 'add');
-        this.board.removeCenter(shape.center); 
-        this.board.drawCenter(shape.center); 
+        const movedPoints = shape.move(direction);
+        if(movedPoints === -1) {
+            this.board.checkLine(movedPoints);
+            this.nextShape();
+        } 
+        if(movedPoints.length) {
+            this.board.drawShape(shape.points, 'remove');
+            this.board.drawShape(movedPoints, 'add');
+            shape.points = movedPoints;
+        }
+    }
+    
+    this.nextShape = () => {
+        this.currentShape = Math.floor(Math.random() * 5);
+        this.board.drawShape(this.shapes[this.currentShape].points, 'add'); 
     }
     
     this.turnShape = (shape) => {
-        this.board.drawShape(shape, 'remove');    
+        this.board.drawShape(shape.points, 'remove');    
         shape.turn();
-        this.board.drawShape(shape, 'add');
+        this.board.drawShape(shape.points, 'add');
     }
     
     document.onkeydown = (e) => {
 
 		e = e || window.event;
         
-        const shape = this.shapes[0];
+        const shape = this.shapes[this.currentShape];
 
 		if (e.keyCode == '38') {
 			this.turnShape(shape);
@@ -137,11 +152,15 @@ function Board(size) {
 			row.style.borderBottom = '1px solid black';
 	}
 	
-	this.drawShape = (shape, action) => {
-		for(let i = 0; i < shape.points.length; i++) {
-			this.drawSquare(shape.points[i], action);
+	this.drawShape = (points, action) => {
+		for(let i = 0; i < points.length; i++) {
+			this.drawSquare(points[i], action);
 		}	
 	}
+    
+    this.checkLine = (shape) => {
+        
+    }
     
     this.getSquareId = (point) => {
         return 'square_' + parseInt(point.y) + '_' + parseInt(point.x);
@@ -177,6 +196,7 @@ function Shape(points, color, board) {
     this.center;
 	this.points;
 	this.color;
+    this.board = board;
 	
 	this.movePoint = (direction, point, steps = 1) => {
 		switch(direction) {
@@ -193,7 +213,20 @@ function Shape(points, color, board) {
                 point.x += steps;
 			break;
 		}
+        
+        return this.checkPoint(point);
+        
 	}
+    
+    this.checkPoint = (point) => {
+        if( point.x > this.board.matrix[0].length-1 || point.x < 0) {
+            return -2;
+        } else if(point.y > this.board.matrix.length-1) {
+            return -1;
+        } else {
+            return 1
+        }
+    }
     
     this.getCoordinates = (points) => {
         
@@ -263,20 +296,36 @@ function Shape(points, color, board) {
     }
     
     this.move = (direction) => {
-         for(var i = 0; i < this.points.length; i++) {
-            this.movePoint(direction, this.points[i]);
+        const newPoints = [];
+        for(var i = 0; i < this.points.length; i++) {
+            const newPoint = {...this.points[i]},
+                  status = this.movePoint(direction, newPoint);
+            if(status === -1 || status === -2) {
+                return status;
+            } 
+            newPoints.push(newPoint);
         }   
-        this.movePoint(direction, this.center);
+        //this.board.removeCenter(this.center);
+        this.movePoint(direction, this.center); 
+        //this.board.drawCenter(this.center); 
+        return newPoints;   
     }
     
     this.turn = () => {
         
         let maxLength = this.getMaxLength(this.getLength(this.getCoordinates(this.points))) + 1,
-            stepsPerAngle = maxLength % 2 === 0 ? 0 : 1,
+            stepsPerAngle,
             currentPoint = {...this.center};
         
-        const cyclesCount = parseInt(maxLength/2),
-              newPoints = [];
+         const cyclesCount = parseInt(maxLength/2),
+            newPoints = [];
+        
+        if(maxLength % 2 === 0) {
+            stepsPerAngle = 0;
+        } else {
+            stepsPerAngle = 1;
+            newPoints.push(currentPoint);
+        }
         
         for(var cycleNum = 1; cycleNum <= cyclesCount; cycleNum ++) {
             
@@ -289,7 +338,7 @@ function Shape(points, color, board) {
 
                 if(pointIndexToMove !== -1) {
                     
-                    const newPoint = {...this.points[pointIndexToMove]};
+                    let newPoint = {...this.points[pointIndexToMove]};
                     
                     cycle(currentStep, stepsPerAngle -1, stepsPerAngle -1, currentPoint, (direction, currentStep, currentPoint) => {
                         this.movePoint(direction, newPoint);
