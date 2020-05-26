@@ -50,26 +50,29 @@ function Game(board) {
     ];
     
 	this.shapes = [
-		new Shape(ZShape, 'gray', board),
-        new Shape(LShape, 'gray', board),
-        new Shape(TShape, 'gray', board),
-        new Shape(OShape, 'gray', board),
-        new Shape(IShape, 'gray', board)
+        ZShape,
+        LShape,
+        TShape,
+        OShape,
+        IShape
 	];	
     
 	this.init = () => {
 		this.board.renderGameBoard();
 		this.nextShape();
+        setInterval(() => {
+            this.moveShape(this.currentShape, 'down');
+        }, 250);
         //this.board.drawCenter(this.shapes[0].center);
 	}
     
     this.moveShape = (shape, direction) => {
         const movedPoints = shape.move(direction);
         if(movedPoints === -1) {
-            this.board.checkLine(movedPoints);
+            this.board.markShapeAsStatic(shape.points);
+            this.board.checkFilledLines(shape);
             this.nextShape();
-        } 
-        if(movedPoints.length) {
+        }else if(movedPoints.length) {
             this.board.drawShape(shape.points, 'remove');
             this.board.drawShape(movedPoints, 'add');
             shape.points = movedPoints;
@@ -77,8 +80,8 @@ function Game(board) {
     }
     
     this.nextShape = () => {
-        this.currentShape = Math.floor(Math.random() * 5);
-        this.board.drawShape(this.shapes[this.currentShape].points, 'add'); 
+        this.currentShape = new Shape(this.shapes[Math.floor(Math.random() * 5)], 'gray', board);
+        this.board.drawShape(this.currentShape.points, 'add'); 
     }
     
     this.turnShape = (shape) => {
@@ -91,7 +94,7 @@ function Game(board) {
 
 		e = e || window.event;
         
-        const shape = this.shapes[this.currentShape];
+        const shape = this.currentShape;
 
 		if (e.keyCode == '38') {
 			this.turnShape(shape);
@@ -144,7 +147,7 @@ function Board(size) {
 					let col = document.createElement('div');
 					drawCol(col, {x: i, y: j});
 					row.appendChild(col);
-					this.matrix[i][j] = 0;
+                    this.markSquare({y: i, x: j}, 'empty');
 				}
                 boardElement.style.position = 'relative';
 				boardElement.appendChild(row);
@@ -154,23 +157,88 @@ function Board(size) {
 	
 	this.drawShape = (points, action) => {
 		for(let i = 0; i < points.length; i++) {
-			this.drawSquare(points[i], action);
+            if(action === 'add') {
+                this.addSquare(points[i], 'moving');
+            } else {
+                this.removeSquare(points[i]);
+            }
 		}	
 	}
     
-    this.checkLine = (shape) => {
+    this.checkFilledLines = (shape) => {
+        const coords = shape.getCoordinates(shape.points);
+        let lineFilled;
+            
+        for(var i = coords.yUp; i <= coords.yDown; i++) {
+            lineFilled = true;
+            for(var j = 0; j < this.matrix[i].length; j++) {
+                if(this.matrix[i][j] !== 2) {
+                    lineFilled = false;
+                    break;
+                }
+            }
+            if(lineFilled) {
+                this.removeLine(i, this.matrix[i].length);
+                this.shiftEmptyLine(i);
+            }
+        }
+    }
+    
+    this.shiftEmptyLine = (lineInd) => {
         
+        for(let i = lineInd; i > 0; i--) {
+            for(let j = 0; j < this.matrix[lineInd].length; j++) {
+                if(this.matrix[i-1][j] === 2) {
+                    this.removeSquare({x: j, y: i-1});
+                    this.addSquare({x: j, y: i}, 'static');
+                }
+            }
+        }
+        
+    }
+    
+    this.removeLine = (index, length) => {
+        for(let i = 0; i < length; i++) {
+            this.removeSquare({x: i, y: index});
+        }
     }
     
     this.getSquareId = (point) => {
         return 'square_' + parseInt(point.y) + '_' + parseInt(point.x);
     }
     
-	this.drawSquare = (point, action) => {
-		this.matrix[point.y][point.x] = action === 'remove' ? 0 : 1;
-		var square = document.getElementById(this.getSquareId(point));
-		square.style.background = action === 'remove' ? 'white' : 'gray';		
+    this.markShapeAsStatic = (points) => {
+        points.forEach(point => this.markSquare(point, 'static'));
+    }
+    
+    this.addSquare = (point, status) => {
+        this.markSquare(point, status);
+        this.drawSquare(point, 'occupied');
+    }
+    
+    this.removeSquare = (point) => {
+        this.markSquare(point, 'empty');
+        this.drawSquare(point, 'empty');
+    }
+    
+	this.markSquare = (point, status) => {
+        switch(status) {
+            case 'empty':
+                this.matrix[point.y][point.x] = 0;
+            break;
+            case 'moving':
+                this.matrix[point.y][point.x] = 1;
+            break;
+            case 'static':
+                this.matrix[point.y][point.x] = 2;
+            break;
+        }
 	}
+        
+    this.drawSquare = (point, action) => {
+        var square = document.getElementById(this.getSquareId(point));
+        square.style.background = action === 'occupied' ? 'gray' : 'white';		
+    }
     
     this.drawCenter = (point) => {
         var centerSquare = document.createElement('div');
@@ -198,7 +266,8 @@ function Shape(points, color, board) {
 	this.color;
     this.board = board;
 	
-	this.movePoint = (direction, point, steps = 1) => {
+	this.movePoint = (direction, point, isCenter, steps = 1) => {
+
 		switch(direction) {
             case 'up':
                 point.y -= steps;
@@ -214,15 +283,21 @@ function Shape(points, color, board) {
 			break;
 		}
         
-        return this.checkPoint(point);
+        return isCenter ? 1 : this.checkCollision(point, direction);
         
 	}
     
-    this.checkPoint = (point) => {
-        if( point.x > this.board.matrix[0].length-1 || point.x < 0) {
-            return -2;
+    this.checkCollision = (point, direction) => {
+        if(point.x > this.board.matrix[0].length-1 || point.x < 0) {
+            return 0;
         } else if(point.y > this.board.matrix.length-1) {
-            return -1;
+            return -1;  
+        }else if(this.board.matrix[point.y][point.x] === 2) {
+            if(direction === 'down') {
+                return -1;   
+            } else {
+                return 0;
+            }
         } else {
             return 1
         }
@@ -300,13 +375,13 @@ function Shape(points, color, board) {
         for(var i = 0; i < this.points.length; i++) {
             const newPoint = {...this.points[i]},
                   status = this.movePoint(direction, newPoint);
-            if(status === -1 || status === -2) {
+            if(status !== 1) {
                 return status;
             } 
             newPoints.push(newPoint);
         }   
         //this.board.removeCenter(this.center);
-        this.movePoint(direction, this.center); 
+        this.movePoint(direction, this.center, true); 
         //this.board.drawCenter(this.center); 
         return newPoints;   
     }
