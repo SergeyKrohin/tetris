@@ -7,38 +7,38 @@ function Game(board) {
     this.currentShape;
     
     const ZShape = [
+        {x: 4, y: 0}, 
+        {x: 3, y: 1}, 
         {x: 4, y: 1}, 
-        {x: 3, y: 2}, 
-        {x: 4, y: 2}, 
-        {x: 5, y: 1}
+        {x: 5, y: 0}
     ];
     
     const LShape = [
+        {x: 3, y: 0}, 
         {x: 3, y: 1}, 
-        {x: 3, y: 2}, 
-        {x: 4, y: 2}, 
-        {x: 5, y: 2}
+        {x: 4, y: 1}, 
+        {x: 5, y: 1}
     ];
     
     const TShape = [
+        {x: 4, y: 0}, 
+        {x: 3, y: 1}, 
         {x: 4, y: 1}, 
-        {x: 3, y: 2}, 
-        {x: 4, y: 2}, 
-        {x: 5, y: 2}
+        {x: 5, y: 1}
     ];
     
     const OShape = [
-        {x: 5, y: 1}, 
+        {x: 5, y: 0}, 
+        {x: 4, y: 0}, 
         {x: 4, y: 1}, 
-        {x: 4, y: 2}, 
-        {x: 5, y: 2}
+        {x: 5, y: 1}
     ];
     
     const IShape = [
-        {x: 3, y: 1}, 
-        {x: 4, y: 1}, 
-        {x: 5, y: 1}, 
-        {x: 6, y: 1}
+        {x: 3, y: 0}, 
+        {x: 4, y: 0}, 
+        {x: 5, y: 0}, 
+        {x: 6, y: 0}
     ];
     
 	this.shapes = [
@@ -52,8 +52,17 @@ function Game(board) {
 	this.init = () => {
 		this.board.renderGameBoard();
 		this.nextShape();
-        setInterval(() => {
-            this.moveShape(this.currentShape, 'down');
+        let gameOverCount = 0;
+        const interval = setInterval(() => {
+            if(this.moveShape(this.currentShape, 'down') === 'occupied') {
+                gameOverCount ++;
+            } else {
+                gameOverCount = 0;
+            }
+            if(gameOverCount > 1) {
+                clearInterval(interval);
+                alert('gameOver');
+            }
         }, 250);
 	}
     
@@ -79,6 +88,7 @@ function Game(board) {
             this.board.drawShape(movedPoints, 'add');
             shape.points = movedPoints;
         }
+        return movedPoints;
     }
     
     this.turnShape = (shape) => {
