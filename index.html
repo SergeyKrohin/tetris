@@ -9,13 +9,22 @@
             div {
                 //box-sizing: border-box!important;
                 margin: 0;
+                //transition: background-color 300ms linear;
+            }
+            #board, #score {
+                float: left;
+            }
+            #score {
+                float: left;
+                margin-left: 20px;
+                font-weight: bold;
+                font-family: arial;
             }
         </style>
 	</header>
 	<body>
-		<div id="board">
-			tetris game
-		</div>
+		<div id="board"></div>
+        <div id="score">0</div>
 		<script src="main.js"></script>
 	</body>
 	
