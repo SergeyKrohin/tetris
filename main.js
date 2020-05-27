@@ -367,9 +367,6 @@ function Shape(points, color, board) {
         if(y % 1 !== 0 && length.x > length.y) {
             y = y -= 1;
         }
-        //if(x % 1 !== 0 && length.y > length.x) {
-            //x = x -= 1;
-        //}
         
         return {
             x: x, 
@@ -407,9 +404,7 @@ function Shape(points, color, board) {
             } 
             newPoints.push(newPoint);
         }   
-        //this.board.removeCenter(this.center);
         this.movePoint(direction, this.center, true); 
-        //this.board.drawCenter(this.center); 
         return newPoints;   
     }
     
@@ -432,7 +427,8 @@ function Shape(points, color, board) {
         for(var cycleNum = 1; cycleNum <= cyclesCount; cycleNum ++) {
             
             stepsPerAngle += 2;
-            currentPoint = getInitialPosition(this.center, stepsPerAngle); //closest top-left position in relation to center point
+            //closest top-left position in relation to center point
+            currentPoint = getInitialPosition(this.center, stepsPerAngle); 
             
             if(cycle(0, 4 * (stepsPerAngle-1), stepsPerAngle -1, currentPoint, (direction, currentStep, currentPoint) => {
                 
@@ -444,10 +440,7 @@ function Shape(points, color, board) {
                     
                     if(cycle(currentStep, stepsPerAngle -1, stepsPerAngle -1, currentPoint, (direction, currentStep, currentPoint) => {
                         const status = this.movePoint(direction, newPoint);
-                        
-
-                        
-                        
+                                                
                         if(status !== 'clear'){
                             if(status === 'occupied') {
                                if(direction === 'left' || direction === 'up') {
@@ -461,6 +454,7 @@ function Shape(points, color, board) {
                            
                             return true;
                         }
+                        
                     })) return true;
                     newPoints.push(newPoint);
                 } 
