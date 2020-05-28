@@ -5,6 +5,7 @@ function Game(board) {
     this.score = 0;
 	this.board = board;
     this.currentShape;
+    this.delay = 500;
     
     const ZShape = [
         {x: 4, y: 0}, 
@@ -53,18 +54,23 @@ function Game(board) {
 		this.board.renderGameBoard();
 		this.nextShape();
         let gameOverCount = 0;
-        const interval = setInterval(() => {
+        this.run();
+	}
+    
+    this.run = () => {
+        const timeout = setTimeout(() => {
             if(this.moveShape(this.currentShape, 'down') === 'occupied') {
                 gameOverCount ++;
             } else {
                 gameOverCount = 0;
             }
             if(gameOverCount > 1) {
-                clearInterval(interval);
-                alert('gameOver');
+                clearTimeout(timeout);
+                return alert('gameOver');
             }
-        }, 250);
-	}
+            this.run();
+        }, this.delay);
+    }
     
     this.nextShape = () => {
         this.currentShape = new Shape(this.shapes[Math.floor(Math.random() * 5)], 'gray', board);
@@ -73,7 +79,10 @@ function Game(board) {
     
     this.increaseScore = (linesCount) => {
         if(linesCount) {
-         this.board.drawScore(this.score += linesCount * 100);   
+            this.board.drawScore(this.score += linesCount * 100);  
+            if(this.score % 1000 === 0) {
+                this.delay -= 50;
+            }
         }
     }
     
